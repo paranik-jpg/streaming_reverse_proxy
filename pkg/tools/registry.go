@@ -17,6 +17,9 @@ func NewRegistry() *Registry {
 	}
 }
 
+// Protected by sync.RWMutex.
+// Prevents duplicate tool names at registration.
+// Pre-compiles the schema upon Register().
 func (r *Registry) Register(
 	name string,
 	description string,
@@ -52,4 +55,3 @@ func (r *Registry) Register(
 
 	return nil
 }
-

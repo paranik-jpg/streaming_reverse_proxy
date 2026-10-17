@@ -32,7 +32,7 @@ type Proxy struct {
 func New(upstreamURL string, client *http.Client) *Proxy {
 	if client == nil {
 		client = &http.Client{
-			Timeout: 0,
+			Timeout: 0, // CRITICAL for streaming!
 		}
 	}
 	return &Proxy{
@@ -49,7 +49,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("X-Accel-Buffering", "no")
+	w.Header().Set("X-Accel-Buffering", "no") // Prevents Nginx/proxies from buffering chunks
 
 	rc := http.NewResponseController(w)
 
@@ -77,7 +77,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	chunkChan := make(chan string, p.BufferSize)
+	chunkChan := make(chan string, p.BufferSize) // Max 2 chunks allowed in flight
 	errChan := make(chan error, 1)
 
 	go func() {
@@ -95,6 +95,8 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				slog.Info("Client disconnected; halting upstream ingestion goroutine")
 				return
 			case chunkChan <- line:
+			// If a client takes more than 1.5 seconds to acknowledge the previous 2 chunks,
+			// drop the connection to safeguard server memory.
 			case <-time.After(p.BackpressureTimeout):
 				slog.Warn("Backpressure threshold exceeded: downstream client too slow, dropping connection")
 				errChan <- errors.New("slow_consumer_backpressure")
@@ -123,6 +125,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		case raw, ok := <-chunkChan:
 			if !ok {
+				// EOF reached! Upstream finished generating text.
 				fmt.Fprintf(w, "data: [DONE]\n\n")
 				_ = rc.Flush()
 				slog.Info("Stream completed successfully",
@@ -154,4 +157,3 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
-

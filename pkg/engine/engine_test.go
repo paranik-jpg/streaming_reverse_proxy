@@ -47,6 +47,8 @@ func TestEngineSelfCorrectsInvalidToolArguments(t *testing.T) {
 					t.Error("expected tools to be available on turn 1")
 				}
 
+				// The Fake AI replies:
+				// "Okay, I want to call mock_user_lookup with user_id: -5."
 				writeChatResponse(t, w, engine.ChatResponse{
 					Message: engine.Message{
 						Role: "assistant",
@@ -92,6 +94,8 @@ func TestEngineSelfCorrectsInvalidToolArguments(t *testing.T) {
 				}
 
 				// Turn 2: The model corrects the arguments.
+				// The Fake AI realizes its mistake and replies:
+				// "My apologies! Let me run mock_user_lookup with user_id: 1 instead."
 				writeChatResponse(t, w, engine.ChatResponse{
 					Message: engine.Message{
 						Role: "assistant",
@@ -126,6 +130,8 @@ func TestEngineSelfCorrectsInvalidToolArguments(t *testing.T) {
 					t.Error("turn 3 is missing the successful tool result")
 				}
 
+				// The Fake AI writes the final answer:
+				// "Found Alice. Her user ID is 1."
 				writeChatResponse(t, w, engine.ChatResponse{
 					Message: engine.Message{
 						Role:    "assistant",
@@ -170,6 +176,8 @@ func TestEngineSelfCorrectsInvalidToolArguments(t *testing.T) {
 		},
 	)
 
+	// Our engine says to the AI:
+	// "Here is a prompt: 'Look up user 1'".
 	answer, err := eng.Run(
 		context.Background(),
 		[]engine.Message{
@@ -205,4 +213,3 @@ func writeChatResponse(
 		t.Errorf("encode simulated upstream response: %v", err)
 	}
 }
-

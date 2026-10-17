@@ -190,7 +190,8 @@ InferenceLoop:
 		assistantMessage := response.Message
 		assistantMessage.Role = "assistant"
 
-		// No tool calls means the model has produced its final answer.
+		// If the AI didn't ask to call any tool,
+		// it means it's done! Return its text to the user.
 		if len(assistantMessage.ToolCalls) == 0 {
 			e.messages = append(e.messages, assistantMessage)
 			return assistantMessage.Content, nil
@@ -209,6 +210,8 @@ InferenceLoop:
 				call.ID = fmt.Sprintf("call-%d-%d", e.callDepth, i)
 			}
 
+			// If the AI did ask to call a tool,
+			// check if the arguments are valid JSON and obey the schema.
 			result, err := e.Registry.Execute(
 				ctx,
 				call.Function.Name,
@@ -220,6 +223,8 @@ InferenceLoop:
 					"; ",
 				)
 
+				// Give the AI at most 2 retries to fix its mistakes.
+				// If it keeps failing, give up instead of looping forever.
 				if e.retryCount >= MaxRetries {
 					return "", fmt.Errorf(
 						"%w: %s",
@@ -228,12 +233,14 @@ InferenceLoop:
 					)
 				}
 
+				// The AI passed bad arguments!
 				feedback := fmt.Sprintf(
 					"Your tool call arguments failed schema validation with error: %s. "+
 						"Provide the corrected arguments conforming strictly to the defined schema.",
 					validationDetails,
 				)
 
+				// Add the error into the chat history:
 				e.messages = append(e.messages, Message{
 					Role:    "user",
 					Content: feedback,
@@ -242,6 +249,7 @@ InferenceLoop:
 				e.retryCount++
 
 				// Retry inference with the expanded conversation history.
+				// Send it right back to the AI to let it fix its own mistake!
 				continue InferenceLoop
 			}
 
@@ -264,4 +272,3 @@ InferenceLoop:
 		e.callDepth++
 	}
 }
-

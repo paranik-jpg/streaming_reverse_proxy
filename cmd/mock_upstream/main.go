@@ -28,6 +28,8 @@ func main() {
 
 		for i := 1; ; i++ {
 			select {
+			// Because r.Context() was passed into http.NewRequestWithContext,
+			// closing the client connection stops both the proxy and upstream LLM immediately.
 			case <-r.Context().Done():
 				fmt.Println("[Upstream] Downstream cancelled! Reclaiming compute.")
 				return

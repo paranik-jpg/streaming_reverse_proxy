@@ -37,7 +37,6 @@ func (r *Registry) Execute(
 		return nil, err
 	}
 
-	// 3. Execution with Context Guardrails
 	type handlerResult struct {
 		value any
 		err   error
@@ -45,6 +44,7 @@ func (r *Registry) Execute(
 
 	resultCh := make(chan handlerResult, 1)
 
+	// 3. Execute Handler in Goroutine with Context Guardrail
 	go func() {
 		value, err := tool.Handler(ctx, args)
 		resultCh <- handlerResult{
@@ -72,10 +72,11 @@ func (r *Registry) Execute(
 		return nil, fmt.Errorf("serialize tool output: %w", err)
 	}
 
+	// If a tool returns more than 8 Kilobytes of data,
+	// reject it so the AI's prompt doesn't get flooded.
 	if len(output) > MaxToolOutputBytes {
 		return nil, ErrToolOutputTooLarge
 	}
 
 	return result, nil
 }
-

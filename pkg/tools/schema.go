@@ -28,7 +28,8 @@ func CompileToolSchema(rawSchemaJSON string) (*jsonschema.Schema, error) {
 	return schema, nil
 }
 
-// SanitizePayload removes surrounding whitespace and optional Markdown fences.
+// SanitizePayload removes surrounding whitespace
+// and ```json markdown fences.
 func SanitizePayload(raw string) string {
 	raw = strings.TrimSpace(raw)
 
@@ -65,6 +66,7 @@ func DecodePayload(rawBytes []byte) (any, error) {
 	return payload, nil
 }
 
+// Checks if the arguments match the schema rules.
 func ValidatePayload(schema *jsonschema.Schema, rawBytes []byte) (any, error) {
 	payload, err := DecodePayload(rawBytes)
 	if err != nil {
@@ -82,6 +84,8 @@ func ValidatePayload(schema *jsonschema.Schema, rawBytes []byte) (any, error) {
 	return payload, nil
 }
 
+// Hierarchical Error Formatting: Traverses the validation AST to produce clear, actionable feedback paths
+// e.g. /user_id: must be >= 1.
 func ExtractValidationErrors(err error) []string {
 	if err == nil {
 		return nil
@@ -117,4 +121,3 @@ func ExtractValidationErrors(err error) []string {
 	walk(valErr)
 	return messages
 }
-
